@@ -114,6 +114,14 @@ This extension attribute script is designed to run another script (rather than j
 You'd place this yielder on disk as part of your client side script run.
 
 #### Fancier, self-destructing code "yielder" script
+The tiny, self-destructing script that the "fancier" extension attribute above would run.
+```shell
+#!/bin/zsh
+echo -n "aCodeValueThatGotInjectedByAnOuterScript"
+rm -f $0
+```
+
+An abridged example of this in use within an outer script, potentially being run via Self Service...
 ```shell
 #!/bin/zsh
 
