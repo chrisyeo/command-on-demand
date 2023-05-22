@@ -273,7 +273,7 @@ func (c *Client) SendProCommand(cmd ProCommander) error {
 		return err
 	}
 
-	u, _ := url.JoinPath(c.classicApi(), ep)
+	u, _ := url.JoinPath(c.proApi(), ep)
 
 	body, err := json.Marshal(&cmd)
 	if err != nil {
