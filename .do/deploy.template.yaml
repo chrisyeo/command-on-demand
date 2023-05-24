@@ -16,7 +16,7 @@ spec:
           value: ""
           scope: RUN_TIME
         - key: CMDOD_JAMF_API_PASSWORD
-          value: ""
+          value: "Remember to click Encrypt for this variable"
           scope: RUN_TIME
         - key: CMDOD_CODE_PROOF_EA_NAME
           value: ""
@@ -28,5 +28,5 @@ spec:
           value: ""
           scope: RUN_TIME
         - key: CMDOD_SERVER_BEARER_TOKEN
-          value: ""
+          value: "Remember to click Encrypt for this variable"
           scope: RUN_TIME
