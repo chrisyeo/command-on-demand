@@ -207,7 +207,7 @@ _**Note:** The included Dockerfile is for reference only, tweak it to your prefe
 - Be signed in to a DigitalOcean account with credits available or a payment method set up
 - Click the blue button!
 - Use the **Edit Plan** button to choose a plan that suits you - this should run fine on the smallest size on the **Basic** plan ($5 pcm)
-  - (The smallest instance type is configured in the template, but DO doesn't seem to apply it at the moment 🤨)
+  - The smallest instance type is set in the template, but DO doesn't seem to apply it at the moment 🤨
 - Click **Next** and then **Edit** on the Environment Variables for the `command-on-demand-api` component
 - Enter appropriate values for all require variables
   - Add and set any optional vars if you need them (see .env file example below for a full list of possible vars)
@@ -217,6 +217,8 @@ _**Note:** The included Dockerfile is for reference only, tweak it to your prefe
 - Congratulations, you've deployed the service. The public URL (ending `ondigitalocean.app`) will be displayed near the top of the page.
 
 [![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/chrisyeo/command-on-demand/tree/main&refcode=b3bc5c8d1708)
+
+**Note:** The DigitalOcean template uses the Dockerfile included at the root of this repo
 
 #### Example .env file
 ```dotenv
