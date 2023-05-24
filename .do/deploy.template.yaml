@@ -1,0 +1,26 @@
+spec:
+  name: command-on-demand
+  services:
+    - name: command-on-demand-api
+      github:
+        branch: main
+        repo: chrisyeo/command-on-demand
+      http_port: 8080
+      instance_size_slug: basic-xxs
+      dockerfile_path: Dockerfile
+      envs:
+        - key: CMDOD_JAMF_FQDN
+          value: "yourorg.jamfcloud.com"
+          scope: RUN_TIME
+        - key: CMDOD_JAMF_API_USER
+          value: ""
+          scope: RUN_TIME
+        - key: CMDOD_JAMF_API_PASSWORD
+          value: "Replace & click Encrypt"
+          scope: RUN_TIME
+        - key: CMDOD_CODE_PROOF_EA_NAME
+          value: ""
+          scope: RUN_TIME
+        - key: CMDOD_SERVER_BEARER_TOKEN
+          value: "Replace & click Encrypt"
+          scope: RUN_TIME
