@@ -3,6 +3,7 @@ package server
 import (
 	"command-on-demand/internal/logger"
 	"context"
+	"crypto/subtle"
 	"github.com/dchest/uniuri"
 	"net/http"
 	"strings"
@@ -53,7 +54,12 @@ func (s Server) MiddlewareBearerAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		if strings.TrimPrefix(t, "Bearer ") != s.token() {
+		// convert to []byte outside of CTC as these are not constant time ops
+		bt := []byte(strings.TrimPrefix(t, "Bearer "))
+		bst := []byte(s.token())
+
+		match := subtle.ConstantTimeCompare(bt, bst)
+		if match != 1 {
 			logger.WithRequest(rId, r).Error("invalid token provided")
 			writeResponse(w, http.StatusForbidden, "invalid token", true, "")
 			return
