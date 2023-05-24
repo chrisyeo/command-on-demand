@@ -37,7 +37,7 @@ Working on it! But the general idea is to use the most expeditious command optio
 Although the plan is to also expose all the options that Jamf provides. 
 
 ## Wait... This still requires putting a credential in my script!
-Well, yes, but having the bearer token is only the first control, and it certainly beats using Jamf credentials. You could even use mTLS as an additional access control if your platform supports it. 
+Well, yes, but having the bearer token is only the first control, and it certainly beats using Jamf credentials. 
 
 Note that clients can only cause a command to be sent to _themselves_ and only if they can prove established trust with the Jamf server,
 and that they can modify a chosen part of _their_ Jamf device record:
@@ -193,6 +193,12 @@ which echos out the code _and then deletes itself_.
 This is nice because on subsequent recon runs, an empty value will be returned,
 and will therefore clear out the previously stored code in Jamf too.
 This doesn't lend any security benefits, it's just good housekeeping. 
+
+### Building and running the binary (if not using Docker)
+- `cd` into the cloned repo directory
+- run `go build -o command-on-demand cmd/main.go`
+- run the app with `./command-on-demand`
+  - You'll need to set environment variables; you will see errors until these are all present and correct
 
 ### Run locally for quick testing with Docker
 _**Note:** The included Dockerfile is for reference only, tweak it to your preferences, or maybe don't use it at all._
