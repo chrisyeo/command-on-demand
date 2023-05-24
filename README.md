@@ -203,6 +203,21 @@ _**Note:** The included Dockerfile is for reference only, tweak it to your prefe
 - Run `docker run --env-file .env --rm -p 8080:8080 command-on-demand`
   - Don't forget to update the port mapping if you changed the listen port in `.env`
 
+### Run on DigitalOcean (App Platform)
+- Be signed in to a DigitalOcean account with credits available or a payment method set up
+- Click the blue button!
+- Use the **Edit Plan** button to choose a plan that suits you - this should run fine on the smallest size on the **Basic** plan ($5 pcm)
+  - (The smallest instance type is configured in the template, but DO doesn't seem to apply it at the moment 🤨)
+- Click **Next** and then **Edit** on the Environment Variables for the `command-on-demand-api` component
+- Enter appropriate values for all require variables
+  - Add and set any optional vars if you need them (see .env file example below for a full list of possible vars)
+  - For any vars containing sensitive details (credentials/tokens), make sure you click the **Encrypt** checkbox
+- Save and click **Next**, picking your preferred region, etc
+- Click **Create Resources** and wait for the build/deploy phases to finish
+- Congratulations, you've deployed the service. The public URL (ending `ondigitalocean.app`) will be displayed near the top of the page.
+
+[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/chrisyeo/command-on-demand/tree/main&refcode=b3bc5c8d1708)
+
 #### Example .env file
 ```dotenv
 # app ignores variables not prefixed with CMDOD_
@@ -229,7 +244,7 @@ CMDOD_SERVER_BEARER_TOKEN=veryLongTokenValue
 ```
 
 ### Run in production
-_If_ or how you do that is up to you, but there should be a Digital Ocean deployment button here soon™️.
+_If_ or how you do that is up to you.
 
 *Whatever you do, put it behind a balancer/reverse proxy which does TLS termination - the service currently uses only HTTP for its endpoints. (Calls to Jamf are HTTPS)*
 

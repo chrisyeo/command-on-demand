@@ -21,12 +21,6 @@ spec:
         - key: CMDOD_CODE_PROOF_EA_NAME
           value: ""
           scope: RUN_TIME
-        - key: CMDOD_SERVER_LISTEN_INTERFACE
-          value: ""
-          scope: RUN_TIME
-        - key: CMDOD_SERVER_LISTEN_PORT
-          value: ""
-          scope: RUN_TIME
         - key: CMDOD_SERVER_BEARER_TOKEN
           value: "Replace & click Encrypt"
           scope: RUN_TIME
