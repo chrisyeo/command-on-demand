@@ -5,7 +5,9 @@ import (
 	"command-on-demand/internal/logger"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
+	"strconv"
 )
 
 type Server struct {
@@ -68,16 +70,25 @@ func (s Server) ListenInterface() string {
 		return "0.0.0.0"
 	}
 
+	if net.ParseIP(i) == nil {
+		return "0.0.0.0"
+	}
+
 	return i
 }
 
 func (s Server) ListenPort() string {
-	i, ok := s.env[EnvServiceListenPort]
+	p, ok := s.env[EnvServiceListenPort]
 	if !ok {
 		return "8080"
 	}
 
-	return i
+	_, err := strconv.Atoi(p)
+	if err != nil {
+		return "8080"
+	}
+
+	return p
 }
 
 func writeResponse(w http.ResponseWriter, status int, msg string, isError bool, origin string) {
