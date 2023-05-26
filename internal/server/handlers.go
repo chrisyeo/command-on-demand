@@ -4,6 +4,7 @@ import (
 	"command-on-demand/internal/jamf"
 	"command-on-demand/internal/logger"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -11,18 +12,9 @@ import (
 )
 
 func (s Server) CodeHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-
-	udid, exists := vars["udid"]
-	if !exists {
-		writeResponse(w, http.StatusBadRequest, "UDID not specified", true, "")
-		return
-	}
-
-	_, err := uuid.Parse(udid)
+	udid, err := s.checkUDID(r)
 	if err != nil {
-		writeResponse(w, http.StatusBadRequest, "Not a valid UDID", true, "")
-		return
+		writeResponse(w, http.StatusBadRequest, err.Error(), true, "")
 	}
 
 	code, err := s.CodeStore.GenerateCode(udid)
@@ -42,19 +34,26 @@ func (s Server) CodeHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func (s Server) EraseHandler(w http.ResponseWriter, r *http.Request) {
+func (s Server) checkUDID(r *http.Request) (string, error) {
 	vars := mux.Vars(r)
 
 	udid, exists := vars["udid"]
 	if !exists {
-		writeResponse(w, http.StatusBadRequest, "UDID not specified", true, "")
-		return
+		return udid, errors.New("UDID not specified")
 	}
 
 	_, err := uuid.Parse(udid)
 	if err != nil {
-		writeResponse(w, http.StatusBadRequest, "Not a valid UDID", true, "")
-		return
+		return udid, errors.New("not a valid UDID")
+	}
+
+	return udid, nil
+}
+
+func (s Server) EraseHandler(w http.ResponseWriter, r *http.Request) {
+	udid, err := s.checkUDID(r)
+	if err != nil {
+		writeResponse(w, http.StatusBadRequest, err.Error(), true, "")
 	}
 
 	comp, err := s.jamf.GetComputer(udid)
