@@ -113,7 +113,9 @@ I'll write a full Wiki eventually, but here are the cliff notes...
 ### Configure Jamf
 - Create an admin user with the following permissions and set a strong password
   - Jamf Pro Server Objects > Computers > **Create** & **Read**
-  - Jamf Pro Server Actions > **Send Computer Remote Wipe Command**
+  - Depending on which commands you wish to invoke, at least one of:
+    - Jamf Pro Server Actions > **Send Computer Remote Wipe Command**
+    - Jamf Pro Server Actions > **Send Computer Remote Command to Download and Install macOS Update**
 - Create a _Computer_ Extension attribute:
   - Give it a sensible name (you'll need this later). E.g. `cmdod-code`
   - Data Type: **String**
