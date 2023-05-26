@@ -15,6 +15,18 @@ const (
 	UpdatePriorityLow              = "LOW"
 )
 
+var (
+	ForceInstallLatest = SoftwareUpdateCommandConfig{
+		targetVersion:    "",
+		skipVerify:       true,
+		updateAction:     UpdateActionDownloadAndInstall,
+		maxDeferrals:     0,
+		forceRestart:     true,
+		applyMajorUpdate: true,
+		priority:         UpdatePriorityHigh,
+	}
+)
+
 type SoftwareUpdateCommandConfig struct {
 	targetVersion    string
 	skipVerify       bool
@@ -69,16 +81,6 @@ func NewSoftwareUpdateCommand(comp Computer, c SoftwareUpdateCommandConfig) Soft
 	}
 
 	return cmd
-}
-
-// NewSoftwareUpdateCommandForceLatest is a convenience function for building an often desired command type;
-// an ASAP update to the latest available OS version (including major releases) and forcing a restart
-func NewSoftwareUpdateCommandForceLatest(comp Computer) SoftwareUpdateCommand {
-	conf, _ := NewSoftwareUpdateConfig(
-		"", true, UpdateActionDownloadAndInstall,
-		0, true, true, UpdatePriorityHigh)
-
-	return NewSoftwareUpdateCommand(comp, conf)
 }
 
 func NewSoftwareUpdateConfig(targetVersion string, skipVerify bool, updateAction string,
