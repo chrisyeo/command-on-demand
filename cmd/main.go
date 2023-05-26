@@ -16,6 +16,7 @@ func main() {
 	go svc.CodeStore.Prune(10 * time.Second)
 	r.HandleFunc("/api/v1/code/{udid}", svc.CodeHandler).Methods("GET")
 	r.HandleFunc("/api/v1/erase/{udid}", svc.EraseHandler).Methods("POST")
+	r.HandleFunc("/api/v1/swupd/{udid}", svc.SoftwareUpdateHandler).Methods("POST")
 
 	// skip middleware and obfuscate 404 with 403 for unknown paths
 	nfh := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
