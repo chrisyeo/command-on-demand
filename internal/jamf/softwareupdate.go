@@ -3,7 +3,6 @@ package jamf
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"golang.org/x/mod/semver"
 	"regexp"
 	"strconv"
@@ -86,28 +85,28 @@ func NewSoftwareUpdateConfig(targetVersion string, skipVerify bool, updateAction
 	maxDeferrals int, forceRestart bool, applyMajorUpdate bool, priority string) (SoftwareUpdateCommandConfig, error) {
 
 	if updateAction != UpdateActionDownloadOnly && updateAction != UpdateActionDownloadAndInstall {
-		return SoftwareUpdateCommandConfig{}, fmt.Errorf("updateAction not recognised")
+		return SoftwareUpdateCommandConfig{}, errors.New("updateAction not recognised")
 	}
 
 	if priority != UpdatePriorityHigh && priority != UpdatePriorityLow {
-		return SoftwareUpdateCommandConfig{}, fmt.Errorf("value for priority not recognised")
+		return SoftwareUpdateCommandConfig{}, errors.New("value for priority not recognised")
 	}
 
 	if maxDeferrals < 0 {
-		return SoftwareUpdateCommandConfig{}, fmt.Errorf("maxDeferrals cannot be negative")
+		return SoftwareUpdateCommandConfig{}, errors.New("maxDeferrals cannot be negative")
 	}
 
 	if targetVersion != "" {
 		match := regexp.MustCompile(`^\d+(\.\d+)*$`).MatchString(targetVersion)
 		if !match {
 			return SoftwareUpdateCommandConfig{},
-				errors.New("version may only contain numbers separated by dots and must start and end with a number")
+				errors.New("version must contain numbers separated by dots and must start and end with a number")
 		}
 
 		tv := "v" + targetVersion
 		ok := semver.IsValid(tv)
 		if !ok {
-			return SoftwareUpdateCommandConfig{}, errors.New("version is invalid: does not conform to semver")
+			return SoftwareUpdateCommandConfig{}, errors.New("version does not conform to semver")
 		}
 	}
 
