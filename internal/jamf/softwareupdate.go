@@ -29,22 +29,24 @@ type SoftwareUpdateCommand struct {
 	config   SoftwareUpdateCommandConfig
 }
 
+type SoftwareUpdateCommandBody struct {
+	// https://developer.jamf.com/jamf-pro/reference/post_v1-macos-managed-software-updates-send-updates
+	DeviceIds      []string `json:"deviceIds"`
+	SkipVersVerify bool     `json:"skipVersionVerification,omitempty"`
+	ApplyMajor     bool     `json:"applyMajorUpdate,omitempty"`
+	ForceRestart   bool     `json:"forceRestart,omitempty"`
+	Priority       string   `json:"priority,omitempty"`
+	UpdateAction   string   `json:"updateAction,omitempty"`
+	MaxDefer       int      `json:"maxDeferrals,omitempty"`
+	Version        string   `json:"version,omitempty"`
+}
+
 func (c SoftwareUpdateCommand) Path() (string, error) {
 	return "/v1/macos-managed-software-updates/send-updates", nil
 }
 
-// https://developer.jamf.com/jamf-pro/reference/post_v1-macos-managed-software-updates-send-updates
 func (c SoftwareUpdateCommand) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&struct {
-		DeviceIds      []string `json:"deviceIds"`
-		SkipVersVerify bool     `json:"skipVersionVerification,omitempty"`
-		ApplyMajor     bool     `json:"applyMajorUpdate,omitempty"`
-		ForceRestart   bool     `json:"forceRestart,omitempty"`
-		Priority       string   `json:"priority,omitempty"`
-		UpdateAction   string   `json:"updateAction,omitempty"`
-		MaxDefer       int      `json:"maxDeferrals,omitempty"`
-		Version        string   `json:"version,omitempty"`
-	}{
+	b := SoftwareUpdateCommandBody{
 		DeviceIds:      []string{strconv.Itoa(c.computer.Id)},
 		SkipVersVerify: c.config.skipVerify,
 		ApplyMajor:     c.config.applyMajorUpdate,
@@ -53,7 +55,9 @@ func (c SoftwareUpdateCommand) MarshalJSON() ([]byte, error) {
 		UpdateAction:   c.config.updateAction,
 		MaxDefer:       c.config.maxDeferrals,
 		Version:        c.config.targetVersion,
-	})
+	}
+
+	return json.Marshal(&b)
 }
 
 func NewSoftwareUpdateCommand(comp Computer, c SoftwareUpdateCommandConfig) SoftwareUpdateCommand {
