@@ -1,19 +1,20 @@
 # command-on-demand
 Enable Self-Service MDM command invocation, without exposing Jamf API credentials in scripts.
 
-**☠️ THIS TOOL CAN CAUSE IMMEDIATE AND IRREVERSIBLE DATA LOSS ☠️**
-- Make sure you _fully understand_ how it works before venturing further
-- Any example scripts, extension attributes and configurations are purely for convenience and to help you understand and get started with the tool
-- **_Always_** use test devices when first trying this out and when testing your deployment
-- Use a test/sandbox Jamf instance where possible
-- See disclaimers below and in LICENSE file
-
 ## How does that work then?
 `command-on-demand` is a web service which sits between your scripts and the Jamf API.
 
 The service exposes a small API surface which your scripts call, authorised with a separate bearer token.
 
 Various checks are carried out to determine how requests are sent to Jamf (or if they should be sent at all).
+
+## Warning
+**☠️ THIS TOOL CAN CAUSE IMMEDIATE AND IRREVERSIBLE DATA LOSS ☠️**
+- Make sure you _fully understand_ how it works before venturing further
+- Any example scripts, extension attributes and configurations are purely for convenience and to help you understand and get started with the tool
+- **_Always_** use test devices when first trying this out and when testing your deployment
+- Use a test/sandbox Jamf instance where possible
+- See disclaimers below and in LICENSE file
 
 ## Use cases
 This tool was built with a few specific use cases in mind
