@@ -92,7 +92,7 @@ Previously, I've used tools like Okta Workflows or Pipedream to achieve the same
 But sharing solutions for those platforms isn't always easy and not everyone can/wants to use them... also I wanted to learn Go and give something back to the MacAdmin & Jamf community, so that's why this exists!
 
 **There has been limited testing done so far**; only on Apple Silicon Macs _without_ Activation Lock set.
-I'll try to extend the testing to Intel and other device states (ActivationRecoveryOS/Firmware locked, etc).
+I'll try to extend the testing to Intel and other device states (Activation/RecoveryOS/Firmware locked, etc).
 
 ⚠️ **Disclaimer:** I'm not an expert (Go) programmer; you may find bugs or see things you don't like (yes, I still need to write tests).
 I cannot be held responsible for anything (bad) that happens if you use (or don't use) the code in any of the repos on my GitHub.
@@ -104,8 +104,9 @@ Things I want to implement/improve:
 - Allow passthrough of configurable params to Jamf API for the Software Update command
 - Unit Tests
 - Testing on more hardware and software configurations
-- Logging, Errors and project structure can probably be done better
-- The overall code quality, specifically where not idiomatic Go (or just bad Go)
+- Logging, Errors and project structure can probably still be done better
+- Continued improvement to overall code quality
+- Outbound webhooks for certain events (e.g. when commands are sent) 
 - Any other (good/reasonable) ideas that surface
 
 ## I'm still here, how do I use it?
@@ -222,9 +223,10 @@ _**Note:** The included Dockerfile is for reference only, tweak it to your prefe
 
 ### Run on DigitalOcean (App Platform)
 - Be signed in to a DigitalOcean account with credits available or a payment method set up
+  - You can [sign up](https://m.do.co/c/b3bc5c8d1708) and get $200 of credit for 60 days
 - Click the blue button!
 - Use the **Edit Plan** button to choose a plan that suits you - this should run fine on the smallest size on the **Basic** plan ($5 pcm)
-  - The smallest instance type is set in the template, but DO doesn't seem to apply it at the moment 🤨
+  - The smallest instance type is set in the template, but doesn't seem to get applied at the moment 🤨
 - Click **Next** and then **Edit** on the Environment Variables for the `command-on-demand-api` component
 - Enter appropriate values for all require variables
   - Add and set any optional vars if you need them (see .env file example below for a full list of possible vars)
@@ -260,6 +262,7 @@ CMDOD_SERVER_BEARER_TOKEN=veryLongTokenValue
 # uncomment to change defaults
 #CMDOD_SERVER_LISTEN_INTERFACE=0.0.0.0
 #CMDOD_SERVER_LISTEN_PORT=8080
+#CMDOD_LOG_LEVEL=info
 ```
 
 ### Run in production
@@ -327,7 +330,7 @@ Therefore, a new code must be requested and pushed to Jamf before calling this e
 
 ### Responses
 #### Error
-An error response body will contain information about the error and its origin (Command on Demand or Jamf).
+An error response body will contain information about the error and its origin.
 
 Example:
 ```json
@@ -338,6 +341,12 @@ Example:
     "errorOrigin": "jamf"
 }
 ```
+
+#### Error Origins
+- `jamf` an error returned by an API call to Jamf, the status code matches what was returned by Jamf
+- `service` an error that occurred internally when processing a request
+- `request` an error resulting from an incorrect or unexpected request to the service (i.e. from your client code 😜)
+- `unknown` an error which cannot be categorised as any of the above. These shouldn't ever really be seen in typical use.
 
 #### Success
 Unless otherwise stated, responses for successful operations will usually conform to the same schema
