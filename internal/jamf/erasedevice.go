@@ -1,21 +1,30 @@
 package jamf
 
 import (
+	"bytes"
 	"encoding/xml"
+	"net/http"
+	"net/url"
 )
 
 type EraseDeviceCommand struct {
-	ClassicCommand
-	name     string
 	computer Computer
 	passcode string
 }
 
-// MarshalXML implements xml.Marshaller to build the XML structure for an EraseDevice command
-// https://developer.jamf.com/jamf-pro/reference/createcomputercommandbycommand
-func (c EraseDeviceCommand) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+// NewEraseDeviceCommand returns a new EraseDeviceCommand
+func NewEraseDeviceCommand(comp Computer, pin string) EraseDeviceCommand {
+	var c = EraseDeviceCommand{}
 
-	var tmp struct {
+	c.passcode = pin
+	c.computer = comp
+
+	return c
+}
+
+func (c EraseDeviceCommand) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	// https://developer.jamf.com/jamf-pro/reference/createcomputercommandbycommand
+	var x struct {
 		XMLName struct{} `xml:"computer_command"`
 		General struct {
 			Command  string `xml:"command"`
@@ -28,24 +37,36 @@ func (c EraseDeviceCommand) MarshalXML(e *xml.Encoder, start xml.StartElement) e
 		} `xml:"computers"`
 	}
 
-	tmp.Computers.Computer.Id = c.computer.Id
-	tmp.General.Command = c.name
-	tmp.General.Passcode = c.passcode
+	x.Computers.Computer.Id = c.computer.Id
+	x.General.Command = "EraseDevice"
+	x.General.Passcode = c.passcode
 
-	return e.Encode(&tmp)
+	return e.Encode(&x)
 }
 
-func (c EraseDeviceCommand) Path() (string, error) {
-	return c.name, nil
+// Body returns the XML body for the EraseDeviceCommand
+func (c EraseDeviceCommand) Body() ([]byte, error) {
+	return xml.Marshal(c)
 }
 
-// NewEraseDeviceCommand returns an EraseDeviceCommand constructed by using a given Computer and pin (passcode)
-func NewEraseDeviceCommand(comp Computer, pin string) EraseDeviceCommand {
-	var c = EraseDeviceCommand{}
+// Request builds a new http.Request for the EraseDeviceCommand with its relative API path, headers and body
+func (c EraseDeviceCommand) Request() (*http.Request, error) {
+	u, err := url.JoinPath(ClassicAPI, "computercommands", "command", "EraseDevice")
+	if err != nil {
+		return nil, err
+	}
 
-	c.name = "EraseDevice"
-	c.passcode = pin
-	c.computer = comp
+	body, err := c.Body()
+	if err != nil {
+		return nil, err
+	}
 
-	return c
+	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", "application/xml")
+
+	return req, nil
 }

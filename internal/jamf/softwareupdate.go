@@ -1,11 +1,15 @@
 package jamf
 
 import (
+	"bytes"
+	"command-on-demand/internal/errors"
 	"encoding/json"
-	"errors"
-	"golang.org/x/mod/semver"
+	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
+
+	"golang.org/x/mod/semver"
 )
 
 const (
@@ -38,7 +42,6 @@ type SoftwareUpdateCommandConfig struct {
 }
 
 type SoftwareUpdateCommand struct {
-	ProCommand
 	computer Computer
 	config   SoftwareUpdateCommandConfig
 }
@@ -55,8 +58,54 @@ type SoftwareUpdateCommandBody struct {
 	Version        string   `json:"version,omitempty"`
 }
 
-func (c SoftwareUpdateCommand) Path() (string, error) {
-	return "/v1/macos-managed-software-updates/send-updates", nil
+func NewSoftwareUpdateCommand(comp Computer, c SoftwareUpdateCommandConfig) SoftwareUpdateCommand {
+	cmd := SoftwareUpdateCommand{
+		computer: comp,
+		config:   c,
+	}
+
+	return cmd
+}
+
+func NewSoftwareUpdateConfig(targetVersion string, skipVerify bool, updateAction string,
+	maxDeferrals int, forceRestart bool, applyMajorUpdate bool, priority string) (SoftwareUpdateCommandConfig, error) {
+
+	if updateAction != UpdateActionDownloadOnly && updateAction != UpdateActionDownloadAndInstall {
+		return SoftwareUpdateCommandConfig{}, errors.UpdateConfigActionBad
+	}
+
+	if priority != UpdatePriorityHigh && priority != UpdatePriorityLow {
+		return SoftwareUpdateCommandConfig{}, errors.UpdateConfigPriorityBad
+	}
+
+	if maxDeferrals < 0 {
+		return SoftwareUpdateCommandConfig{}, errors.UpdateConfigMaxDefferalsNegative
+	}
+
+	if targetVersion != "" {
+		match := regexp.MustCompile(`^\d+(\.\d+)*$`).MatchString(targetVersion)
+		if !match {
+			return SoftwareUpdateCommandConfig{}, errors.UpdateConfigVersionBadFormat
+		}
+
+		tv := "v" + targetVersion
+		ok := semver.IsValid(tv)
+		if !ok {
+			return SoftwareUpdateCommandConfig{}, errors.UpdateConfigVersionNotSemver
+		}
+	}
+
+	c := SoftwareUpdateCommandConfig{
+		targetVersion:    targetVersion,
+		skipVerify:       skipVerify,
+		updateAction:     updateAction,
+		maxDeferrals:     maxDeferrals,
+		forceRestart:     forceRestart,
+		applyMajorUpdate: applyMajorUpdate,
+		priority:         priority,
+	}
+
+	return c, nil
 }
 
 func (c SoftwareUpdateCommand) MarshalJSON() ([]byte, error) {
@@ -74,53 +123,29 @@ func (c SoftwareUpdateCommand) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&b)
 }
 
-func NewSoftwareUpdateCommand(comp Computer, c SoftwareUpdateCommandConfig) SoftwareUpdateCommand {
-	cmd := SoftwareUpdateCommand{
-		computer: comp,
-		config:   c,
-	}
-
-	return cmd
+// Body returns the JSON body for the SoftwareUpdateCommand
+func (c SoftwareUpdateCommand) Body() ([]byte, error) {
+	return c.MarshalJSON()
 }
 
-func NewSoftwareUpdateConfig(targetVersion string, skipVerify bool, updateAction string,
-	maxDeferrals int, forceRestart bool, applyMajorUpdate bool, priority string) (SoftwareUpdateCommandConfig, error) {
-
-	if updateAction != UpdateActionDownloadOnly && updateAction != UpdateActionDownloadAndInstall {
-		return SoftwareUpdateCommandConfig{}, errors.New("updateAction not recognised")
+// Request builds a new http.Request for the SoftwareUpdateCommand
+func (c SoftwareUpdateCommand) Request() (*http.Request, error) {
+	u, err := url.JoinPath(ProAPI, "v1", "macos-managed-software-updates", "send-updates")
+	if err != nil {
+		return nil, err
 	}
 
-	if priority != UpdatePriorityHigh && priority != UpdatePriorityLow {
-		return SoftwareUpdateCommandConfig{}, errors.New("value for priority not recognised")
+	body, err := c.Body()
+	if err != nil {
+		return nil, err
 	}
 
-	if maxDeferrals < 0 {
-		return SoftwareUpdateCommandConfig{}, errors.New("maxDeferrals cannot be negative")
+	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
 	}
 
-	if targetVersion != "" {
-		match := regexp.MustCompile(`^\d+(\.\d+)*$`).MatchString(targetVersion)
-		if !match {
-			return SoftwareUpdateCommandConfig{},
-				errors.New("version must contain numbers separated by dots and must start and end with a number")
-		}
+	req.Header.Add("Content-Type", "application/json")
 
-		tv := "v" + targetVersion
-		ok := semver.IsValid(tv)
-		if !ok {
-			return SoftwareUpdateCommandConfig{}, errors.New("version does not conform to semver")
-		}
-	}
-
-	c := SoftwareUpdateCommandConfig{
-		targetVersion:    targetVersion,
-		skipVerify:       skipVerify,
-		updateAction:     updateAction,
-		maxDeferrals:     maxDeferrals,
-		forceRestart:     forceRestart,
-		applyMajorUpdate: applyMajorUpdate,
-		priority:         priority,
-	}
-
-	return c, nil
+	return req, nil
 }

@@ -1,12 +1,14 @@
 package server
 
 import (
+	"command-on-demand/internal/errors"
 	"command-on-demand/internal/logger"
 	"context"
 	"crypto/subtle"
-	"github.com/dchest/uniuri"
 	"net/http"
 	"strings"
+
+	"github.com/dchest/uniuri"
 )
 
 type ctxKey string
@@ -49,8 +51,8 @@ func (s Server) MiddlewareBearerAuth(next http.Handler) http.Handler {
 		t := r.Header.Get("Authorization")
 
 		if !strings.HasPrefix(t, "Bearer ") {
-			logger.WithRequest(rId, r).Error("malformed or missing token")
-			writeResponse(w, http.StatusBadRequest, "malformed or missing token", true, "")
+			logger.WithRequest(rId, r).Error(errors.BadToken)
+			writeErrorResponse(w, errors.BadToken)
 			return
 		}
 
@@ -60,8 +62,8 @@ func (s Server) MiddlewareBearerAuth(next http.Handler) http.Handler {
 
 		match := subtle.ConstantTimeCompare(bt, bst)
 		if match != 1 {
-			logger.WithRequest(rId, r).Error("invalid token provided")
-			writeResponse(w, http.StatusForbidden, "invalid token", true, "")
+			logger.WithRequest(rId, r).Error(errors.InvalidToken)
+			writeErrorResponse(w, errors.InvalidToken)
 			return
 		}
 

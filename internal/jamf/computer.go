@@ -1,7 +1,7 @@
 package jamf
 
 import (
-	"fmt"
+	"command-on-demand/internal/errors"
 )
 
 type ExtensionAttribute struct {
@@ -29,5 +29,5 @@ func (c Computer) GetExtensionAttribute(name string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("no such extension attribute: %s", name)
+	return "", errors.ExtAttrNotFound
 }

@@ -1,14 +1,21 @@
 package logger
 
 import (
-	"github.com/sirupsen/logrus"
 	"net/http"
+	"os"
+
+	"github.com/sirupsen/logrus"
 )
 
 var log = logrus.New()
 
 func Setup() {
 	log.SetFormatter(&logrus.JSONFormatter{})
+	level, err := logrus.ParseLevel(os.Getenv("CMDOD_LOG_LEVEL"))
+	if err != nil {
+		level = logrus.InfoLevel
+	}
+	log.SetLevel(level)
 }
 
 func Info(args ...interface{}) {

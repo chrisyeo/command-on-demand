@@ -1,13 +1,19 @@
 package server
 
 import (
+	"command-on-demand/internal/errors"
 	"command-on-demand/internal/jamf"
 	"command-on-demand/internal/logger"
 	"encoding/json"
+	e "errors"
 	"fmt"
 	"net"
 	"net/http"
 	"strconv"
+)
+
+const (
+	eraseDevicePin = "000000"
 )
 
 type Server struct {
@@ -31,7 +37,7 @@ func (e ServiceResponse) Error() string {
 	return fmt.Sprintf("%s. status: %d", e.Message, e.Status)
 }
 
-func NewService() Server {
+func NewServer() Server {
 	env, err := NewEnvironment("CMDOD_")
 	if err != nil {
 		logger.Fatal(err)
@@ -56,12 +62,6 @@ func NewService() Server {
 
 func (s Server) token() string {
 	return s.env[EnvServerBearerToken]
-}
-
-// eraseDevicePin returns the 6 digit pin used in EraseDevice commands.
-// This is currently hard-coded to six zeroes
-func (s Server) eraseDevicePin() string {
-	return "000000"
 }
 
 func (s Server) ListenInterface() string {
@@ -91,21 +91,64 @@ func (s Server) ListenPort() string {
 	return p
 }
 
-func writeResponse(w http.ResponseWriter, status int, msg string, isError bool, origin string) {
+// writeResponse writes a ServiceResponse to the response body and sets the response status
+func writeResponse(w http.ResponseWriter, status int, msg string) {
 	w.WriteHeader(status)
-	var ogn string
-	if isError {
-		if origin == "" {
-			ogn = "internal"
-		} else {
-			ogn = origin
-		}
+
+	r := ServiceResponse{
+		Status:  &status,
+		Message: msg,
+		IsError: false,
 	}
-	e := ServiceResponse{
+	json.NewEncoder(w).Encode(&r)
+}
+
+// writeErrorResponse writes an error to the response body and sets the response status
+func writeErrorResponse(w http.ResponseWriter, err error) {
+	status, msg, origin := classifyError(err)
+	w.WriteHeader(status)
+
+	r := ServiceResponse{
 		Status:      &status,
 		Message:     msg,
-		IsError:     isError,
-		ErrorOrigin: ogn,
+		IsError:     true,
+		ErrorOrigin: origin,
 	}
-	json.NewEncoder(w).Encode(&e)
+	json.NewEncoder(w).Encode(&r)
+}
+
+// classifyError determines the status code and message for a given error
+func classifyError(err error) (status int, msg string, origin string) {
+	var sErr errors.Service
+	if e.As(err, &sErr) {
+		status = http.StatusInternalServerError
+		msg = sErr.Message
+		origin = "service"
+		wErr := e.Unwrap(sErr)
+		if wErr != nil {
+			logger.Debugf("service error: %s: %s", msg, wErr)
+		}
+		return
+	}
+
+	var jErr errors.Jamf
+	if e.As(err, &jErr) {
+		status = jErr.Status
+		msg = jErr.Message
+		origin = "jamf"
+		return
+	}
+
+	var rErr errors.Request
+	if e.As(err, &rErr) {
+		status = rErr.Status
+		msg = rErr.Message
+		origin = "request"
+		return
+	}
+
+	status = http.StatusInternalServerError
+	msg = "unknown or unhandled error"
+	origin = "unknown"
+	return
 }

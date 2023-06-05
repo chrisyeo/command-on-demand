@@ -1,201 +1,146 @@
 package server
 
 import (
+	"command-on-demand/internal/errors"
 	"command-on-demand/internal/jamf"
 	"command-on-demand/internal/logger"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"net/http"
 )
 
+// CodeHandler returns a new code for the given udid
 func (s Server) CodeHandler(w http.ResponseWriter, r *http.Request) {
 	udid, err := s.checkUDID(r)
 	if err != nil {
-		writeResponse(w, http.StatusBadRequest, err.Error(), true, "")
+		writeErrorResponse(w, err)
+		return
 	}
 
-	code, err := s.CodeStore.GenerateCode(udid)
+	code, err := s.CodeStore.NewCode(udid)
 	if err != nil {
-		writeResponse(w, http.StatusInternalServerError, "could not generate code", true, "")
+		writeErrorResponse(w, err)
 		return
 	}
 
 	if r.Header.Get("Accept") == "application/json" {
 		json.NewEncoder(w).Encode(struct {
 			Code string `json:"code"`
-		}{Code: code})
+		}{Code: code.value})
 		return
 	}
 
-	fmt.Fprint(w, code)
+	fmt.Fprint(w, code.value)
 	return
 }
 
+// validateRequest returns a populated computer object if the udid is valid and a valid code is present in Jamf
+func (s Server) validateRequest(r *http.Request) (comp jamf.Computer, err error) {
+	udid, err := s.checkUDID(r)
+	if err != nil {
+		return
+	}
+
+	comp, err = s.jamf.GetComputer(udid)
+	if err != nil {
+		logger.Error("could not get computer from Jamf: ", err)
+		return
+	}
+
+	err = s.checkCode(comp)
+	if err != nil {
+		logger.Error("code match failed: ", err)
+		return
+	}
+
+	return
+}
+
+// checkUDID returns the udid from the request if it is valid
 func (s Server) checkUDID(r *http.Request) (string, error) {
 	vars := mux.Vars(r)
 
 	udid, exists := vars["udid"]
 	if !exists {
-		return udid, errors.New("UDID not specified")
+		return udid, errors.UdidNotSpecified
 	}
 
 	_, err := uuid.Parse(udid)
 	if err != nil {
-		return udid, errors.New("not a valid UDID")
+		return udid, errors.UdidInvalid
 	}
 
 	return udid, nil
 }
 
+// checkCode returns an error if the code in Jamf does not match the code in the request or if the code has expired
+// an error is also returned if the extension attribute is not present on the computer record
+func (s Server) checkCode(comp jamf.Computer) (err error) {
+	code, err := s.CodeStore.getCode(comp.Udid)
+	defer s.CodeStore.ExpireCode(comp.Udid)
+	if err != nil {
+		return
+	}
+
+	eaName := s.env[EnvCodeProofExtAttName]
+	eaVal, err := comp.GetExtensionAttribute(eaName)
+	if err != nil {
+		logger.Debugf("could not get extension attribute: %s", eaName)
+		return
+	}
+
+	if code.value != eaVal {
+		err = errors.CodeMismatch
+		logger.Debugf("code mismatch: extension attribute '%s': want: %s, got: %s", eaName, code.value, eaVal)
+		return
+	}
+
+	return
+}
+
+// EraseHandler sends an EraseDevice command to the computer specified in the request
 func (s Server) EraseHandler(w http.ResponseWriter, r *http.Request) {
-	udid, err := s.checkUDID(r)
+	comp, err := s.validateRequest(r)
 	if err != nil {
-		writeResponse(w, http.StatusBadRequest, err.Error(), true, "")
-	}
-
-	comp, err := s.jamf.GetComputer(udid)
-	if err != nil {
-		logger.Error(err)
-		cErr, ok := err.(*jamf.ClientError)
-
-		if !ok {
-			writeResponse(w, http.StatusInternalServerError, "Error getting computer record", true, "")
-		} else {
-			var errStatus int
-			if cErr.Status != nil {
-				errStatus = *cErr.Status
-			} else {
-				errStatus = http.StatusInternalServerError
-			}
-			writeResponse(w, errStatus, cErr.Message, true, "jamf")
-		}
+		writeErrorResponse(w, err)
 		return
 	}
 
-	eaVal, err := comp.GetExtensionAttribute(s.env[EnvCodeProofExtAttName])
+	logger.Debug("sending EraseDevice command with PIN: ", eraseDevicePin)
+
+	cmd := jamf.NewEraseDeviceCommand(comp, eraseDevicePin)
+	err = s.jamf.SendCommand(cmd)
 	if err != nil {
-		logger.Error("no such extension attribute: ", s.env[EnvCodeProofExtAttName])
-		writeResponse(w, http.StatusBadRequest, "Unable to find required extension attribute", true, "jamf")
-		return
-	}
-
-	code, err := s.CodeStore.GetCodeValue(udid)
-	defer s.CodeStore.ExpireCode(udid)
-	if err != nil {
-		logger.Error(err)
-		writeResponse(w, http.StatusUnauthorized, "No valid code found for this UDID", true, "")
-		return
-	}
-
-	if code != eaVal {
-		logger.Error("code match failed.")
-		logger.Debugf("code match failed. want: %s, got: %s", code, eaVal)
-		writeResponse(w, http.StatusBadRequest, "Code did not match value in Jamf", true, "")
-		return
-	}
-
-	logger.Info("code match succeeded")
-	logger.Debug("sending EraseDevice command with PIN:", s.eraseDevicePin())
-
-	cmd := jamf.NewEraseDeviceCommand(comp, s.eraseDevicePin())
-	err = s.jamf.SendClassicCommand(cmd)
-	if err != nil {
-		cErr, ok := err.(*jamf.ClientError)
-		if !ok {
-			logger.Error("unhandled error when sending EraseDevice command", err)
-			writeResponse(w, http.StatusInternalServerError, "error when sending EraseDevice command", true, "")
-		} else {
-			var errStatus int
-			if cErr.Status != nil {
-				errStatus = *cErr.Status
-			} else {
-				errStatus = http.StatusInternalServerError
-			}
-			logger.Error("client error when sending EraseDevice command", cErr)
-			writeResponse(w, errStatus, cErr.Message, true, "jamf")
-		}
+		writeErrorResponse(w, err)
 		return
 	}
 
 	logger.Info("EraseDevice command sent successfully")
-	writeResponse(w, http.StatusCreated, "EraseDevice command sent. Prepare thyself!", false, "")
+	writeResponse(w, http.StatusCreated, "EraseDevice command sent. Prepare thyself!")
 	return
 }
 
+// SoftwareUpdateHandler sends a Software Update command to the computer specified in the request
 func (s Server) SoftwareUpdateHandler(w http.ResponseWriter, r *http.Request) {
-	udid, err := s.checkUDID(r)
+	comp, err := s.validateRequest(r)
 	if err != nil {
-		writeResponse(w, http.StatusBadRequest, err.Error(), true, "")
-	}
-
-	comp, err := s.jamf.GetComputer(udid)
-	if err != nil {
-		logger.Error(err)
-		cErr, ok := err.(*jamf.ClientError)
-
-		if !ok {
-			writeResponse(w, http.StatusInternalServerError, "Error getting computer record", true, "")
-		} else {
-			var errStatus int
-			if cErr.Status != nil {
-				errStatus = *cErr.Status
-			} else {
-				errStatus = http.StatusInternalServerError
-			}
-			writeResponse(w, errStatus, cErr.Message, true, "jamf")
-		}
+		writeErrorResponse(w, err)
 		return
 	}
 
-	eaVal, err := comp.GetExtensionAttribute(s.env[EnvCodeProofExtAttName])
-	if err != nil {
-		logger.Error("no such extension attribute: ", s.env[EnvCodeProofExtAttName])
-		writeResponse(w, http.StatusBadRequest, "Unable to find required extension attribute", true, "jamf")
-		return
-	}
-
-	code, err := s.CodeStore.GetCodeValue(udid)
-	defer s.CodeStore.ExpireCode(udid)
-	if err != nil {
-		logger.Error(err)
-		writeResponse(w, http.StatusUnauthorized, "No valid code found for this UDID", true, "")
-		return
-	}
-
-	if code != eaVal {
-		logger.Error("code match failed.")
-		logger.Debugf("code match failed. want: %s, got: %s", code, eaVal)
-		writeResponse(w, http.StatusBadRequest, "Code did not match value in Jamf", true, "")
-		return
-	}
-
-	logger.Info("code match succeeded")
-	logger.Debug("sending Software Update command")
+	logger.Debug("sending Software Update command with forceInstallLatest preset")
 
 	cmd := jamf.NewSoftwareUpdateCommand(comp, jamf.ForceInstallLatest)
-	err = s.jamf.SendProCommand(cmd)
+	err = s.jamf.SendCommand(cmd)
 	if err != nil {
-		cErr, ok := err.(*jamf.ClientError)
-		if !ok {
-			logger.Error("unhandled error when sending Software Update command", err)
-			writeResponse(w, http.StatusInternalServerError, "error when sending Software Update command", true, "")
-		} else {
-			var errStatus int
-			if cErr.Status != nil {
-				errStatus = *cErr.Status
-			} else {
-				errStatus = http.StatusInternalServerError
-			}
-			logger.Error("client error when sending Software Update command", cErr)
-			writeResponse(w, errStatus, cErr.Message, true, "jamf")
-		}
+		writeErrorResponse(w, err)
 		return
 	}
 
 	logger.Info("Software Update command sent successfully")
-	writeResponse(w, http.StatusCreated, "Software Update command sent", false, "")
+	writeResponse(w, http.StatusCreated, "Software Update command sent")
 	return
 }
