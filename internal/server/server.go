@@ -117,7 +117,7 @@ func writeErrorResponse(w http.ResponseWriter, err error) {
 	json.NewEncoder(w).Encode(&r)
 }
 
-// classifyError determines the status code and message for a given error
+// classifyError determines the status code, message and origin of a given error
 func classifyError(err error) (status int, msg string, origin string) {
 	var sErr errors.Service
 	if e.As(err, &sErr) {
@@ -150,5 +150,8 @@ func classifyError(err error) (status int, msg string, origin string) {
 	status = http.StatusInternalServerError
 	msg = "unknown or unhandled error"
 	origin = "unknown"
+	if err != nil {
+		logger.Debugf("unhandled error: %s", err)
+	}
 	return
 }
