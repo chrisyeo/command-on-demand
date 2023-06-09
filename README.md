@@ -343,7 +343,7 @@ Example:
 ```
 
 #### Error Origins
-- `jamf` an error returned by an API call to Jamf, the status code matches what was returned by Jamf
+- `jamf` an error returned by an API call to Jamf, the status code is the one returned by Jamf
 - `service` an error that occurred internally when processing a request
 - `request` an error resulting from an incorrect or unexpected request to the service (i.e. from your client code 😜)
 - `unknown` an error which cannot be categorised as any of the above. These shouldn't ever really be seen in typical use.
